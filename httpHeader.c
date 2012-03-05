@@ -41,25 +41,29 @@ const char http_header_404[] =
 "Content-Type: text/html\r\n"
 "\r\n";
 
-void 
+unsigned int
 getHTML(enum http_header header_type, const char *html_file_name){
 	unsigned int filesize = 0;
 	
 	if(header_type == http_200){
 		printf("using http 200\n");
-		filesize = createBuffer2Send(http_header_ok, html_file_name);	
+		filesize = createBuffer2Send(http_header_ok, html_file_name);
+		return filesize;
 	}
 	else if(header_type == http_302){
 		printf("using http 302\n");
 		filesize = createBuffer2Send(http_header_302, html_file_name);
+		return filesize;
 	}
 	else if(header_type == http_404){
 		printf("using http 404\n");
 		filesize = createBuffer2Send(http_header_404, html_file_name);
+		return filesize;
 	}
 	else{
 		printf("using http 501\n");
 		filesize = createBuffer2Send(http_header_unimplement, html_file_name);
+		return filesize;
 	}		
 }
 void accept_request(int client){
@@ -114,7 +118,10 @@ void accept_request(int client){
 			}
 		}
 		printf("query_string: %s\n",url);
-		getHTML(http_200, "test.html");
+		if(!getHTML(http_200, "test.html")){
+			printf("file can't be found\n");
+			return;
+		}	
 		send(client, buffer2send, strlen(buffer2send), 0);
 		close(client);
 		/* free the malloc of the token */

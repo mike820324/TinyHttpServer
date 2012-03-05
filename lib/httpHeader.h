@@ -35,7 +35,7 @@ extern const char http_header_404[];
 extern const char JokerBot_redirect[];
 
 
-extern void getHTML(enum http_header header_type, const char *html_file_name);
+extern unsigned int getHTML(enum http_header header_type, const char *html_file_name);
 extern void error_die(const char *sc);
 extern int server_start(u_short port);
 extern void accept_request(int client);

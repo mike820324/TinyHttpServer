@@ -38,6 +38,8 @@ char* read2Buffer(const char *html_file_name){
 unsigned int 
 createBuffer2Send(const char *http_header_type, const char * html_file_name){
 	char *buffer = read2Buffer(html_file_name);
+	if(buffer == NULL) return 0;
+
 	unsigned int filesize = calculate_file_size(html_file_name);
 
 	filesize += strlen(http_header_type);
