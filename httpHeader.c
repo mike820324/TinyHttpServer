@@ -15,54 +15,25 @@
 #include "lib/httpHeader.h"
 #include "lib/fileHandle.h"
 
-/* the http header for the server */
-const char http_header_ok[] =
-"HTTP/1.1 200 OK\r\n"
-"Server: JokerBot-Sentinel\r\n"
-"Content-Type: text/html\r\n"
-"\r\n";
-
-const char http_header_302[] =
-"HTTP/1.1 302 Found\r\n"
-"Location: http://www.google.com/\r\n"
-"Server: JokerBot-Sentinel\r\n"
-"Contnet-Type: text/html\r\n"
-"\r\n";
-
-const char http_header_unimplement[] = 
-"HTTP/1.1 501 Method Not Implemented\r\n"
-"Server: JokerBot-Sentinel\r\n"
-"Content-Type: text/html\r\n"
-"\r\n";
-
-const char http_header_404[] = 
-"HTTP/1.1 404 NOT FOUND\r\n"
-"Server: JokerBot-Sentinel\r\n"
-"Content-Type: text/html\r\n"
-"\r\n";
-
 unsigned int
 getHTML(enum http_header header_type, const char *html_file_name){
 	unsigned int filesize = 0;
 	
 	if(header_type == http_200){
 		printf("using http 200\n");
-		filesize = createBuffer2Send(http_header_ok, html_file_name);
+		filesize = createBuffer2Send(http_header_200, html_file_name);
 		return filesize;
-	}
-	else if(header_type == http_302){
+	}else if(header_type == http_302){
 		printf("using http 302\n");
 		filesize = createBuffer2Send(http_header_302, html_file_name);
 		return filesize;
-	}
-	else if(header_type == http_404){
+	}else if(header_type == http_404){
 		printf("using http 404\n");
 		filesize = createBuffer2Send(http_header_404, html_file_name);
 		return filesize;
-	}
-	else{
+	}else{
 		printf("using http 501\n");
-		filesize = createBuffer2Send(http_header_unimplement, html_file_name);
+		filesize = createBuffer2Send(http_header_501, html_file_name);
 		return filesize;
 	}		
 }
@@ -70,15 +41,14 @@ getHTML(enum http_header header_type, const char *html_file_name){
 void 
 accept_request(int client){
 	extern char *buffer2send;	/* extern from fileHandle.c */
-	char buf[0x400];
-	char method[0x100];
-	//char url[0x100];
-	char path[0x200];
+	
+	char buf[0x400];	
+	char *path;	
 	int numchars;	
-	struct stat st;
-	token query_string;
-	char *query_string1 = NULL;
+	token query_string;	
 	token request_token;
+	struct stat st;
+
 	#ifdef DEBUGME
 	unsigned int k;
 	#endif
@@ -86,64 +56,57 @@ accept_request(int client){
 	/* get the input from the client */
 	numchars = get_line(client, buf, sizeof(buf));
 	if(numchars >0){
-		/* change the input string into several tokens */
-		//request_token.token_num = get_token_num(buf," \n\r");
+		/* change the input string into several tokens */		
 		get_token(&request_token, buf, " \n\r");
 		
 		#ifdef DEBUGME
 		PRINT_TOKEN(k, request_token);
-		#endif
-		
-		/* get the method from the input tokens */
-		if(request_token.token_length[0] > sizeof(method)-1 ){
-			error_die("method out of bound\n");
-		}
-		strncpy(method, request_token.token[0], request_token.token_length[0]);
-		method[request_token.token_length[0]] = '\0';
+		#endif			
 		
 		/* check if the method is supported by our server */
-		if (strcasecmp(method, "GET")){
-			getHTML(http_501, "test.html");
-			send(client, buffer2send, strlen(buffer2send), 0);
-			close(client);
-			return;
+		if (strcasecmp(request_token.token[0], "GET")){
+			getHTML(http_501, "test.html");						
+		}else{	/* if the method is a GET method */
+			get_token(&query_string, request_token.token[1], "?");	
+			
+			#ifdef DEBUGME
+			printf("query_string: %s\n",query_string.token[0]);
+			#endif		
+			
+			path = setPath("./", query_string.token[0]);	
+			if(stat(path, &st) == 0 ){
+				if(!getHTML(http_200, path)){
+					printf("file open error\n");
+					close(client);
+					return;	
+				}
+			}else{
+				if(!getHTML(http_404, "notfound.html")){
+					printf("file open error\n");
+					close(client);
+					return;	
+				}
+			}
+			free(path);
+			free_token(&query_string);
 		}
+		free_token(&request_token);		
+		SENDBUFFER2SEND(client);
+		/* free the malloc of the token */		
 		
-		/* get the url from the input tokens */
-		if(request_token.token_length[1] > sizeof(url)-1 ){
-			error_die("url out of bound\n");
-		}
-		//strncpy(url, request_token.token[1], request_token.token_length[1]);
-		//url[request_token.token_length[1]] = '\0';
-		
-		/* If the client request is a GET method */
-		if (strcasecmp(method, "GET") == 0){
-			//query_string.token_num = get_token_number(request_token.token[1], "?");
-			get_token(&query_string, request_token.token[1], "?");
-			//query_string = url;
-			//while ((*query_string != '?') && (*query_string != '\0'))
-			//	query_string++;
-			//if (*query_string == '?'){
-			//	*query_string = '\0';
-			//	query_string++;
-			//}
-		}
-		
-		printf("query_string: %s\n",query_string.token[0]);
-		if(!getHTML(http_200, "test.html")){
-			printf("file can't be found\n");
-			close(client);
-			return;
-		}
-		
-		send(client, buffer2send, strlen(buffer2send), 0);
-		close(client);
-		
-		/* free the malloc of the token */
-		free_token(&query_string);
-		free_token(&request_token);
-		free(buffer2send);
+				
 	}
+}
+char *
+setPath(const char *global_path, const char *request_path){
+	unsigned int total_path_size = strlen(global_path) + strlen(request_path) +1; /* +1 for null*/
+	char *path = (char *)malloc(sizeof(char)*total_path_size);
+	memset(path, 0, total_path_size);
+	strncpy(path, global_path, strlen(global_path));
+	strncat(path, request_path, strlen(request_path));
+	/* total_path_size -1 == string length of both path */
+	path[total_path_size-1] = '\0';
+	return path;
 }
 
 int 
