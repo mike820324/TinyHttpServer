@@ -12,6 +12,7 @@ typedef struct str_token token;
 struct str_token{
 	char *string_buffer;	/* The string that will be cut */
 	char **token;		/* tokens of the string */
+	unsigned int *token_length	/* the string length of all token */
 	unsigned int token_num;	/* token number of the string */
 };
 
@@ -21,6 +22,7 @@ do{\
 	for(counter = 0; counter<(token_struct).token_num; counter++)\
 		printf("token[%d]: %s\n",counter, (token_struct).token[counter]);\
 }while(0)
+
 
 /* functions prototype */
 extern void get_token(token *test, const char *buffer, const char *seper);

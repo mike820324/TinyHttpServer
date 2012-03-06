@@ -30,11 +30,7 @@ extern const char http_header_unimplement[];
 extern const char http_header_302[];
 extern const char http_header_404[];
 
-
-/* the following data are the http header for the JokerBot */
-extern const char JokerBot_redirect[];
-
-
+/* function prototype */
 extern unsigned int getHTML(enum http_header header_type, const char *html_file_name);
 extern void error_die(const char *sc);
 extern int server_start(u_short port);

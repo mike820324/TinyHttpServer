@@ -66,32 +66,41 @@ getHTML(enum http_header header_type, const char *html_file_name){
 		return filesize;
 	}		
 }
-void accept_request(int client){
-	extern char *buffer2send;
-	char buf[1024];
-	int numchars;
-	char method[255];
-	char url[255];
-	char path[512];	
+
+void 
+accept_request(int client){
+	extern char *buffer2send;	/* extern from fileHandle.c */
+	char buf[0x400];
+	char method[0x100];
+	//char url[0x100];
+	char path[0x200];
+	int numchars;	
 	struct stat st;
-	char *query_string = NULL;
+	token query_string;
+	char *query_string1 = NULL;
 	token request_token;
+	#ifdef DEBUGME
 	unsigned int k;
+	#endif
 
 	/* get the input from the client */
 	numchars = get_line(client, buf, sizeof(buf));
 	if(numchars >0){
 		/* change the input string into several tokens */
-		request_token.token_num = get_token_num(buf," \n\r");
+		//request_token.token_num = get_token_num(buf," \n\r");
 		get_token(&request_token, buf, " \n\r");
+		
+		#ifdef DEBUGME
 		PRINT_TOKEN(k, request_token);
+		#endif
 		
 		/* get the method from the input tokens */
-		if(strlen(request_token.token[0]) > sizeof(method)-1 ){
+		if(request_token.token_length[0] > sizeof(method)-1 ){
 			error_die("method out of bound\n");
 		}
-		strncpy(method, request_token.token[0], strlen(request_token.token[0]));
-		method[strlen(request_token.token[0])] = '\0';
+		strncpy(method, request_token.token[0], request_token.token_length[0]);
+		method[request_token.token_length[0]] = '\0';
+		
 		/* check if the method is supported by our server */
 		if (strcasecmp(method, "GET")){
 			getHTML(http_501, "test.html");
@@ -99,47 +108,46 @@ void accept_request(int client){
 			close(client);
 			return;
 		}
+		
 		/* get the url from the input tokens */
-		if(strlen(request_token.token[1]) > sizeof(url)-1 ){
+		if(request_token.token_length[1] > sizeof(url)-1 ){
 			error_die("url out of bound\n");
 		}
-		strncpy(url, request_token.token[1], strlen(request_token.token[1]));
-		url[strlen(request_token.token[1])] = '\0';
-
+		//strncpy(url, request_token.token[1], request_token.token_length[1]);
+		//url[request_token.token_length[1]] = '\0';
 		
 		/* If the client request is a GET method */
 		if (strcasecmp(method, "GET") == 0){
-			query_string = url;
-			while ((*query_string != '?') && (*query_string != '\0'))
-				query_string++;
-			if (*query_string == '?'){
-				*query_string = '\0';
-				query_string++;
-			}
+			//query_string.token_num = get_token_number(request_token.token[1], "?");
+			get_token(&query_string, request_token.token[1], "?");
+			//query_string = url;
+			//while ((*query_string != '?') && (*query_string != '\0'))
+			//	query_string++;
+			//if (*query_string == '?'){
+			//	*query_string = '\0';
+			//	query_string++;
+			//}
 		}
-		printf("query_string: %s\n",url);
+		
+		printf("query_string: %s\n",query_string.token[0]);
 		if(!getHTML(http_200, "test.html")){
 			printf("file can't be found\n");
+			close(client);
 			return;
-		}	
+		}
+		
 		send(client, buffer2send, strlen(buffer2send), 0);
 		close(client);
+		
 		/* free the malloc of the token */
+		free_token(&query_string);
 		free_token(&request_token);
 		free(buffer2send);
 	}
 }
 
-/* 
- * check if the query_string is a command or not 
- * if the string is a command, return true.
- * else return false. 
- */
-int is_cmd(const char *url){
-	
-}
-
-int get_line(int sock, char *buf, int size){
+int 
+get_line(int sock, char *buf, int size){
 	int i = 0;
 	char c = '\0';
 	int n;
@@ -169,7 +177,8 @@ int get_line(int sock, char *buf, int size){
 /*
  * When Some error happened, print error message and die.
  */
-void error_die(const char *sc){
+void 
+error_die(const char *sc){
 	perror(sc);
 	exit(1);
 }
@@ -177,8 +186,8 @@ void error_die(const char *sc){
 /*
  * Start the Server.
  */
-
-int server_start(u_short port){
+int 
+server_start(u_short port){
 	int httpd = 0;
 	struct sockaddr_in name;
 	httpd = socket(PF_INET, SOCK_STREAM, 0);
